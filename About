@@ -1,0 +1,86 @@
+🎨 AI Virtual Painter
+
+AI Virtual Painter is a real-time, touch-free digital painting application built using Python, OpenCV, MediaPipe, and NumPy. It uses webcam-based hand tracking to recognize gestures and perform different painting actions.
+
+✨ Features
+☝️ Draw using your index finger
+☝️🖕 Select colors using index + middle fingers
+✋ Erase using an open hand
+🤏 Capture screenshots using a pinch gesture
+🎨 Multiple color options
+🖐️ Real-time hand tracking
+🖥️ Touch-free interaction through a webcam
+🛠️ Technologies Used
+Python
+OpenCV
+MediaPipe
+NumPy
+📥 Installation
+
+Install the required Python libraries:
+
+pip install opencv-python mediapipe numpy
+
+Download the MediaPipe Hand Landmarker model and place hand_landmarker.task inside the models folder.
+
+▶️ How to Run
+
+Run the application using:
+
+python main.py
+
+Allow webcam access when prompted. The application will open the virtual painting interface.
+
+🖐️ Gesture Controls
+Gesture	Action
+☝️ Index finger	Draw
+☝️🖕 Index + middle fingers	Select color
+✋ Open hand	Erase
+🤏 Thumb + index pinch	Screenshot
+✊ Fist	No special action
+🎨 Drawing
+
+Raise only your index finger and move it around the screen to draw on the virtual canvas.
+
+🌈 Color Selection
+
+Raise your index and middle fingers and move them over a color in the toolbar. Hold briefly to select the desired color.
+
+🧹 Erasing
+
+Open your hand with your fingers extended to activate the eraser and remove painted areas.
+
+📸 Screenshot
+
+Use the thumb and index finger pinch gesture to select an area. Move while maintaining the pinch and release to save the selected region.
+
+🎯 Use Cases
+🎓 Interactive education and teaching
+🎨 Touch-free digital drawing
+🤖 Computer vision and AI demonstrations
+🖥️ Human-computer interaction projects
+♿ Accessibility-focused interfaces
+🎤 Presentations and demonstrations
+🧪 Gesture-recognition experimentation
+🧠 How It Works
+
+The webcam captures live video, while MediaPipe detects hand landmarks. The application analyzes these landmarks to recognize specific gestures and converts them into drawing, erasing, color-selection, and screenshot actions.
+
+Webcam
+   ↓
+OpenCV
+   ↓
+MediaPipe Hand Tracking
+   ↓
+Gesture Recognition
+   ↓
+Virtual Painting Actions
+🚀 Future Improvements
+Adjustable brush sizes
+More colors and drawing tools
+Undo/redo functionality
+Shape drawing
+Text using gestures
+Saving complete paintings
+Voice-controlled commands
+AI-assisted drawing
