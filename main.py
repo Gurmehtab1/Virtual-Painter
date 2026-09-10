@@ -14,13 +14,13 @@ from mediapipe.tasks.python import vision
 
 MODEL_PATH = "models/hand_landmarker.task"
 
-WIDTH = 640
-HEIGHT = 480
+WIDTH = 1280
+HEIGHT = 720
 
-BRUSH_SIZE = 8
+BRUSH_SIZES = [4, 8, 14, 22]
+BRUSH_SIZE = BRUSH_SIZES[1]
 ERASER_SIZE = 40
 
-PINCH_THRESHOLD = 0.10
 COLOR_HOLD_TIME = 0.35
 
 
@@ -107,38 +107,18 @@ current_color = colors[0]
 COLOR_START_X = 30
 COLOR_SPACING = 55
 COLOR_Y = 30
-TOOLBAR_HEIGHT = 60
+TOOLBAR_HEIGHT = 65
 
 
 def draw_toolbar(frame):
 
-    overlay = frame.copy()
-
-    # Transparent toolbar
-    cv2.rectangle(
-        overlay,
-        (0, 0),
-        (WIDTH, TOOLBAR_HEIGHT),
-        (0, 0, 0),
-        -1
-    )
-
-    frame = cv2.addWeighted(
-        overlay,
-        0.18,
-        frame,
-        0.82,
-        0
-    )
+    # Fully transparent toolbar.
+    # Only the controls themselves are drawn over the camera feed.
 
     # Colors
     for i, color in enumerate(colors):
 
-        x = (
-            COLOR_START_X
-            +
-            i * COLOR_SPACING
-        )
+        x = COLOR_START_X + i * COLOR_SPACING
 
         cv2.circle(
             frame,
@@ -158,7 +138,6 @@ def draw_toolbar(frame):
 
         # Selected color
         if color == current_color:
-
             cv2.circle(
                 frame,
                 (x, COLOR_Y),
@@ -167,29 +146,57 @@ def draw_toolbar(frame):
                 2
             )
 
-    # Brush
-    cv2.circle(
-        frame,
-        (360, 30),
-        8,
-        (255, 255, 255),
-        -1
-    )
+    # Brush sizes
+    brush_x_positions = [390, 430, 470, 510]
+
+    for i, size in enumerate(BRUSH_SIZES):
+
+        x = brush_x_positions[i]
+
+        cv2.circle(
+            frame,
+            (x, COLOR_Y),
+            max(4, min(size // 2, 11)),
+            (255, 255, 255),
+            -1
+        )
+
+        if size == BRUSH_SIZE:
+            cv2.circle(
+                frame,
+                (x, COLOR_Y),
+                18,
+                (255, 255, 255),
+                2
+            )
 
     # Eraser
+    eraser_x = 565
+
     cv2.rectangle(
         frame,
-        (399, 19),
-        (421, 41),
+        (eraser_x - 12, 18),
+        (eraser_x + 12, 42),
         (255, 255, 255),
         1
     )
 
+    cv2.line(
+        frame,
+        (eraser_x - 15, 45),
+        (eraser_x + 15, 45),
+        (255, 255, 255),
+        2
+    )
+
     # Save
+    save_x1 = 610
+    save_x2 = 675
+
     cv2.rectangle(
         frame,
-        (445, 13),
-        (505, 47),
+        (save_x1, 13),
+        (save_x2, 47),
         (255, 255, 255),
         1
     )
@@ -197,7 +204,7 @@ def draw_toolbar(frame):
     cv2.putText(
         frame,
         "SAVE",
-        (454, 36),
+        (save_x1 + 9, 36),
         cv2.FONT_HERSHEY_SIMPLEX,
         0.45,
         (255, 255, 255),
@@ -294,14 +301,6 @@ def open_hand(hand):
         and
         pinky_dist > 0.20
     )
-
-
-def pinch(hand):
-
-    return distance(
-        hand[4],
-        hand[8]
-    ) < PINCH_THRESHOLD
 
 
 # ============================================================
@@ -409,6 +408,23 @@ def get_toolbar_color(x, y):
 
 
 # ============================================================
+# BRUSH SIZE
+# ============================================================
+
+def get_brush_size(x, y):
+    if y > TOOLBAR_HEIGHT:
+        return None
+
+    brush_x_positions = [390, 430, 470, 510]
+
+    for i, brush_x in enumerate(brush_x_positions):
+        if abs(x - brush_x) <= 18:
+            return BRUSH_SIZES[i]
+
+    return None
+
+
+# ============================================================
 # SAVE PAINTING
 # ============================================================
 
@@ -435,100 +451,6 @@ def save_painting(camera_clean):
 
 
 # ============================================================
-# SAVE SCREENSHOT
-# ============================================================
-
-def save_screenshot(
-    camera_clean,
-    start,
-    end
-):
-
-    x1 = min(
-        start[0],
-        end[0]
-    )
-
-    y1 = min(
-        start[1],
-        end[1]
-    )
-
-    x2 = max(
-        start[0],
-        end[0]
-    )
-
-    y2 = max(
-        start[1],
-        end[1]
-    )
-
-    x1 = max(
-        0,
-        min(WIDTH - 1, x1)
-    )
-
-    y1 = max(
-        0,
-        min(HEIGHT - 1, y1)
-    )
-
-    x2 = max(
-        0,
-        min(WIDTH, x2)
-    )
-
-    y2 = max(
-        0,
-        min(HEIGHT, y2)
-    )
-
-    if (
-        x2 - x1 < 20
-        or
-        y2 - y1 < 20
-    ):
-
-        print(
-            "Screenshot area too small."
-        )
-
-        return
-
-    screenshot = camera_clean[
-        y1:y2,
-        x1:x2
-    ]
-
-    filename = (
-        f"screenshot_{int(time.time())}.png"
-    )
-
-    cv2.imwrite(
-        filename,
-        screenshot
-    )
-
-    print(
-        "Screenshot saved:",
-        filename
-    )
-
-
-# ============================================================
-# SCREENSHOT STATE
-# ============================================================
-
-screenshot_active = False
-
-screenshot_start = None
-screenshot_end = None
-
-previous_pinch = False
-
-
-# ============================================================
 # COLOR STATE
 # ============================================================
 
@@ -541,6 +463,7 @@ color_candidate_start = None
 # ============================================================
 
 previous_points = {}
+smooth_points = {}
 
 
 # ============================================================
@@ -548,7 +471,14 @@ previous_points = {}
 # ============================================================
 
 cv2.namedWindow(
-    "Virtual Painter"
+    "Virtual Painter",
+    cv2.WINDOW_NORMAL
+)
+
+cv2.setWindowProperty(
+    "Virtual Painter",
+    cv2.WND_PROP_FULLSCREEN,
+    cv2.WINDOW_FULLSCREEN
 )
 
 
@@ -562,7 +492,7 @@ print()
 print("Index only       = Draw")
 print("Index + middle   = Select color")
 print("Open hand        = Erase")
-print("Thumb + index    = Screenshot")
+print("Index + middle   = Select brush size")
 print()
 print("Q = Quit")
 print("C = Clear")
@@ -613,95 +543,6 @@ while True:
 
 
     # ========================================================
-    # SCREENSHOT PINCH
-    # ========================================================
-
-    pinch_found = False
-
-    pinch_position = None
-
-
-    if result.hand_landmarks:
-
-        for hand in result.hand_landmarks:
-
-            if pinch(hand):
-
-                pinch_found = True
-
-                # Use index fingertip
-                pinch_position = (
-                    int(hand[8].x * WIDTH),
-                    int(hand[8].y * HEIGHT)
-                )
-
-                break
-
-
-    # --------------------------------------------------------
-    # Pinch START
-    # --------------------------------------------------------
-
-    if pinch_found and not previous_pinch:
-
-        screenshot_active = True
-
-        screenshot_start = pinch_position
-
-        screenshot_end = pinch_position
-
-        print(
-            "Screenshot selection started."
-        )
-
-
-    # --------------------------------------------------------
-    # Pinch MOVE
-    # --------------------------------------------------------
-
-    if pinch_found and screenshot_active:
-
-        screenshot_end = pinch_position
-
-
-    # --------------------------------------------------------
-    # Pinch RELEASE
-    # --------------------------------------------------------
-
-    if (
-        not pinch_found
-        and
-        previous_pinch
-        and
-        screenshot_active
-    ):
-
-        if (
-            screenshot_start is not None
-            and
-            screenshot_end is not None
-        ):
-
-            save_screenshot(
-                camera_clean,
-                screenshot_start,
-                screenshot_end
-            )
-
-        screenshot_active = False
-
-        screenshot_start = None
-        screenshot_end = None
-
-        print(
-            "Screenshot selection finished."
-        )
-
-
-    previous_pinch = pinch_found
-
-
-    # ========================================================
     # NORMAL HAND PROCESSING
     # ========================================================
 
@@ -717,27 +558,19 @@ while True:
                 hand
             )
 
-            ix = int(
-                hand[8].x * WIDTH
-            )
+            current_x = int(hand[8].x * WIDTH)
+            current_y = int(hand[8].y * HEIGHT)
 
-            iy = int(
-                hand[8].y * HEIGHT
-            )
+            if hand_index in smooth_points:
+                old_x, old_y = smooth_points[hand_index]
 
+                ix = int(old_x * 0.7 + current_x * 0.3)
+                iy = int(old_y * 0.7 + current_y * 0.3)
+            else:
+                ix = current_x
+                iy = current_y
 
-            # =================================================
-            # SCREENSHOT HAS PRIORITY
-            # =================================================
-
-            if screenshot_active:
-
-                previous_points.pop(
-                    hand_index,
-                    None
-                )
-
-                continue
+            smooth_points[hand_index] = (ix, iy)
 
 
             # =================================================
@@ -751,48 +584,41 @@ while True:
                     None
                 )
 
-                selected = get_toolbar_color(
-                    ix,
-                    iy
-                )
+                selected = get_toolbar_color(ix, iy)
+                selected_brush = get_brush_size(ix, iy)
 
                 if selected is not None:
-
                     color_id, selected_color = selected
+                    candidate_id = ("color", color_id)
 
-                    if color_candidate != color_id:
+                    if color_candidate != candidate_id:
+                        color_candidate = candidate_id
+                        color_candidate_start = time.time()
+                    elif color_candidate_start is not None:
+                        elapsed = time.time() - color_candidate_start
 
-                        color_candidate = color_id
+                        if elapsed >= COLOR_HOLD_TIME:
+                            current_color = selected_color
+                            print("COLOR SELECTED:", color_names[color_id])
+                            color_candidate = None
+                            color_candidate_start = None
 
-                        color_candidate_start = (
-                            time.time()
-                        )
+                elif selected_brush is not None:
+                    candidate_id = ("brush", selected_brush)
 
-                    else:
+                    if color_candidate != candidate_id:
+                        color_candidate = candidate_id
+                        color_candidate_start = time.time()
+                    elif color_candidate_start is not None:
+                        elapsed = time.time() - color_candidate_start
 
-                        if color_candidate_start is not None:
-
-                            elapsed = (
-                                time.time()
-                                -
-                                color_candidate_start
-                            )
-
-                            if elapsed >= COLOR_HOLD_TIME:
-
-                                current_color = selected_color
-
-                                print(
-                                    "COLOR SELECTED:",
-                                    color_names[color_id]
-                                )
-
-                                color_candidate = None
-
-                                color_candidate_start = None
+                        if elapsed >= COLOR_HOLD_TIME:
+                            BRUSH_SIZE = selected_brush
+                            print("BRUSH SIZE:", BRUSH_SIZE)
+                            color_candidate = None
+                            color_candidate_start = None
 
                 else:
-
                     color_candidate = None
                     color_candidate_start = None
 
@@ -831,6 +657,10 @@ while True:
                 )
 
                 previous_points.pop(
+                    hand_index,
+                    None
+                )
+                smooth_points.pop(
                     hand_index,
                     None
                 )
@@ -877,6 +707,10 @@ while True:
                 hand_index,
                 None
             )
+            smooth_points.pop(
+                hand_index,
+                None
+            )
 
 
     # ========================================================
@@ -904,27 +738,6 @@ while True:
 
 
     # ========================================================
-    # SCREENSHOT RECTANGLE
-    # ========================================================
-
-    if (
-        screenshot_active
-        and
-        screenshot_start is not None
-        and
-        screenshot_end is not None
-    ):
-
-        cv2.rectangle(
-            display,
-            screenshot_start,
-            screenshot_end,
-            (255, 255, 255),
-            1
-        )
-
-
-    # ========================================================
     # TOOLBAR
     # ========================================================
 
@@ -937,9 +750,46 @@ while True:
     # SHOW
     # ========================================================
 
+    # Keep the 16:9 aspect ratio in fullscreen.
+    # This adds black bars instead of stretching the image.
+    screen_w = 1920
+    screen_h = 1080
+
+    try:
+        _, _, detected_w, detected_h = cv2.getWindowImageRect("Virtual Painter")
+        if detected_w > 0 and detected_h > 0:
+            screen_w = detected_w
+            screen_h = detected_h
+    except:
+        pass
+
+    scale = min(screen_w / WIDTH, screen_h / HEIGHT)
+
+    new_w = int(WIDTH * scale)
+    new_h = int(HEIGHT * scale)
+
+    resized = cv2.resize(
+        display,
+        (new_w, new_h),
+        interpolation=cv2.INTER_LINEAR
+    )
+
+    fullscreen_frame = np.zeros(
+        (screen_h, screen_w, 3),
+        dtype=np.uint8
+    )
+
+    x_offset = (screen_w - new_w) // 2
+    y_offset = (screen_h - new_h) // 2
+
+    fullscreen_frame[
+        y_offset:y_offset + new_h,
+        x_offset:x_offset + new_w
+    ] = resized
+
     cv2.imshow(
         "Virtual Painter",
-        display
+        fullscreen_frame
     )
 
 
@@ -948,6 +798,20 @@ while True:
     # ========================================================
 
     key = cv2.waitKey(1) & 0xFF
+
+    if key == 27:  # ESC
+        cv2.setWindowProperty(
+            "Virtual Painter",
+            cv2.WND_PROP_FULLSCREEN,
+            cv2.WINDOW_NORMAL
+        )
+
+    if key == 0x7A:  # F11 on some OpenCV/Windows setups
+        cv2.setWindowProperty(
+            "Virtual Painter",
+            cv2.WND_PROP_FULLSCREEN,
+            cv2.WINDOW_NORMAL
+        )
 
     if key == ord("q"):
 
@@ -958,6 +822,7 @@ while True:
         canvas[:] = 0
 
         previous_points.clear()
+        smooth_points.clear()
 
         print(
             "Canvas cleared."
